@@ -20,7 +20,6 @@ def eval_boardings(predictions: pd.DataFrame, ground_truth: pd.DataFrame):
 
 
 if __name__ == '__main__':
-    
     parser = ArgumentParser()
     parser.add_argument("--passengers_up_predictions", type=str, default="predictions/passengers_up_predictions.csv",
                         help="path to the passenger up predictions file")

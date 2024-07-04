@@ -44,6 +44,13 @@ class ModelPredictPassengersUp:
         return pd.read_csv(file_path, encoding='ISO-8859-8')
 
     def preprocess(self, data):
+        """
+        initial columns:
+        trip_id,part,trip_id_unique_station,trip_id_unique,line_id,direction,alternative,cluster,station_index,station_id,station_name,arrival_time,door_closing_time,arrival_is_estimated,latitude,longitude,passengers_continue,mekadem_nipuach_luz,passengers_continue_menupach
+
+        :param data: 
+        :return: 
+        """
         # Drop columns that are not needed
         data = data.drop(
             columns=['trip_id', 'part', 'line_id', 'alternative', 'cluster', 'station_name', 'arrival_time',
@@ -51,11 +58,11 @@ class ModelPredictPassengersUp:
 
         # Handle missing values
         imputer = SimpleImputer(strategy='mean')
-        data[['latitude', 'longitude', 'passengers_continue', 'mekadem_nipuach_luz',
-              'passengers_continue_menupach']] = imputer.fit_transform(data[['latitude', 'longitude',
-                                                                             'passengers_continue',
-                                                                             'mekadem_nipuach_luz',
-                                                                             'passengers_continue_menupach']])
+        data = data.drop(columns=['trip_id', 'part', 'line_id', 'direction', 'alternative', 'cluster', 'station_index',
+                                  'station_id', 'station_name', 'arrival_time', 'door_closing_time',
+                                  'arrival_is_estimated',
+                                  'latitude', 'longitude', 'passengers_continue', 'mekadem_nipuach_luz',
+                                  'passengers_continue_menupach'])
 
         # Encode categorical features
         categorical_features = ['trip_id_unique_station', 'trip_id_unique', 'direction', 'arrival_is_estimated']
@@ -70,7 +77,6 @@ class ModelPredictPassengersUp:
         numerical_features = ['latitude', 'longitude', 'passengers_continue', 'mekadem_nipuach_luz',
                               'passengers_continue_menupach']
         data[numerical_features] = self.scaler.fit_transform(data[numerical_features])
-
         return data
 
     def train(self, X, y):
@@ -111,8 +117,8 @@ if __name__ == '__main__':
     test_data['passengers_up'] = predictions
     model.save(test_data, "files/passengers/predictions.csv")
     # evaluate the model
-    ground_truth = model.load_data("files/passengers/val_data.csv")
-    ground_truth = model.preprocess(ground_truth)
-    mse = model.MSE(test_data, ground_truth)
-    print(f"MSE for boardings: {mse}")
-    print("done")
+    # ground_truth = model.load_data("files/passengers/val_data.csv")
+    # ground_truth = model.preprocess(ground_truth)
+    # mse = model.MSE(test_data, ground_truth)
+    # print(f"MSE for boardings: {mse}")
+    # print("done")
