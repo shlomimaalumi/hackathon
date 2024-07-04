@@ -1,6 +1,7 @@
 # -*- coding: ISO-8859-8 -*-
 
 import pandas as pd
+from sklearn.cluster import KMeans
 from sklearn.ensemble import RandomForestRegressor, AdaBoostRegressor, GradientBoostingRegressor
 from sklearn.metrics import mean_squared_error
 from sklearn.linear_model import LinearRegression, PoissonRegressor, Lasso, Ridge, ElasticNet
@@ -17,6 +18,26 @@ COLUMNS = ['trip_id', 'part', 'line_id', 'direction', 'alternative', 'cluster', 
            'station_id', 'station_name', 'arrival_time', 'door_closing_time', 'arrival_is_estimated',
            'latitude', 'longitude', 'passengers_continue', 'mekadem_nipuach_luz', 'passengers_continue_menupach']
 
+def zone_divide(data):
+    coords = data[['latitude', 'longitude']].values
+    kmeans = KMeans(n_clusters=2000, random_state=0)
+    df['region'] = kmeans.fit_predict(coords)
+    output_file_path = r'C:\Users\User\Desktop\Programing\IML\Hakaton\coordinates_with_regions.csv'
+    df.to_csv(output_file_path, index=False)
+    
+    
+# def plot_predictions(predictions, ground_truth):
+#     plt.figure(figsize=(14, 7))
+# 
+#     for i, prediction in enumerate(predictions):
+#         plt.scatter(ground_truth, prediction, label=f'Model {i}', alpha=0.6)
+# 
+#     plt.plot([ground_truth.min(), ground_truth.max()], [ground_truth.min(), ground_truth.max()], 'k--', lw=2)
+#     plt.xlabel('True Values')
+#     plt.ylabel('Predictions')
+#     plt.legend()
+#     plt.title('Model Predictions vs True Values')
+#     plt.show()
 
 class ModelPredictPassengersUp:
     """
@@ -26,9 +47,17 @@ class ModelPredictPassengersUp:
     def __init__(self):
         self.label_encoders = {}
         self.scaler = StandardScaler()
-        self.models = [XGBRegressor(), LinearRegression(), PolynomialFeatures(), PoissonRegressor(), Lasso(), Ridge(),
-                       ElasticNet(), DecisionTreeRegressor(), RandomForestRegressor(), AdaBoostRegressor(),
-                       GradientBoostingRegressor(), SVR(), KNeighborsRegressor(), MLPRegressor()]
+        # self.models = [PolynomialFeatures()]
+        self.models = [XGBRegressor(), LinearRegression()]
+        # self.models = [PoissonRegressor()]
+        # (PolynomialFeatures(), 
+        #  PoissonRegressor(), 
+        # self.models = [Lasso(), Ridge()]
+        
+        # self.models = [ElasticNet(), DecisionTreeRegressor()]#
+        # self.models = [RandomForestRegressor(), AdaBoostRegressor()]
+        # self.models = [GradientBoostingRegressor(), SVR()]
+        # self.models = [KNeighborsRegressor(), MLPRegressor()]
 
     def load_data(self, file_path):
         self.data = pd.read_csv(file_path, encoding='ISO-8859-8')
@@ -57,7 +86,7 @@ class ModelPredictPassengersUp:
 
         # Scale the data
         data = self.scaler.fit_transform(data)
-
+        zone_divide(data)
         return data
 
     def train(self):
@@ -85,19 +114,18 @@ class ModelPredictPassengersUp:
             mse = mean_squared_error(prediction, ground_truth)
             print(f"MSE for model {i}: {mse}")
 
-    def plot_predictions(self, predictions, ground_truth):
-        plt.figure(figsize=(14, 7))
-
-        for i, prediction in enumerate(predictions):
-            plt.scatter(ground_truth, prediction, label=f'Model {i}', alpha=0.6)
-
-        plt.plot([ground_truth.min(), ground_truth.max()], [ground_truth.min(), ground_truth.max()], 'k--', lw=2)
-        plt.xlabel('True Values')
-        plt.ylabel('Predictions')
-        plt.legend()
-        plt.title('Model Predictions vs True Values')
-        plt.show()
-
+    # def plot_predictions(self, predictions, ground_truth):
+    #     plt.figure(figsize=(14, 7))
+    # 
+    #     for i, prediction in enumerate(predictions):
+    #         plt.scatter(ground_truth, prediction, label=f'Model {i}', alpha=0.6)
+    # 
+    #     plt.plot([ground_truth.min(), ground_truth.max()], [ground_truth.min(), ground_truth.max()], 'k--', lw=2)
+    #     plt.xlabel('True Values')
+    #     plt.ylabel('Predictions')
+    #     plt.legend()
+    #     plt.title('Model Predictions vs True Values')
+    #     plt.show()
 
 
 if __name__ == '__main__':
@@ -107,9 +135,10 @@ if __name__ == '__main__':
     model = ModelPredictPassengersUp()
     model.load_data(train_path)
     model.train()
-
+    
     # Comparing the predictions to the ground truth
     predictions = model.predict(model.X)
     model.save(predictions, 'predictions/passengers_up_predictions')
     model.MSE(predictions, model.y)
     # print(f"MSE for boardings: {model.MSE(predictions, model.y)}")
+    # model.plot_predictions(predictions, model.y)
