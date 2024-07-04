@@ -1,79 +1,43 @@
 # -*- coding: ISO-8859-8 -*-
-
-import pandas as pd
-from sklearn.metrics import mean_squared_error
-from sklearn.model_selection import train_test_split
-from sklearn.linear_model import LinearRegression
 import pandas as pd
 from sklearn.model_selection import train_test_split
+import sys
 
-"""
-you want to predict how long is a single bus trip, from its first station to its last station. For this
-task, we treat each trip_unique_id as a single sample indicating a complete bus trip (see Figure 1).
-Based on all information of the stops in this trip, we want to predict the arrival time to the last stop.
-Input.
-A csv where each row holds information of a single bus stop within some bus trip. The test set
-excludes the arrival_time to all stops within the trip, and only provides that of the first station (i.e.,
-the time the bus left its first stop). The predictions should include the trip duration in minutes.
-Output.
-A csv file named ?trip_duration_predictions.csv?, including two columns: trip_id_unique and
-trip_duration_in_minutes: An example of the output is shown in Table 2 and in
-y_trip_duration_example.csv.
-trip_id_unique trip_duration_in_minutes
-111a 78.2
-222c 122.0
-333b 61.6
-Table 2: Trip duration prediction output
-3.3 Using your results to improve public transportation 3
-Evaluation.
-We will evaluate your predictions according to their mean squared error (MSE) metric.
+# Ensure the output encoding is set to handle non-ASCII characters
+sys.stdout.reconfigure(encoding='utf-8')
 
-"""
+# Read the data from the CSV file
+filename = 'train_bus_schedule.csv'
+df = pd.read_csv(filename, encoding='ISO-8859-8')
 
+# Display the first few rows of the dataframe
+print(df.head())
 
-# declare API
+# Function to split the data while keeping the same trip_id_unique together
+def split_data(df, train_size=0.75, test_size=0.125, dev_size=0.125):
+    # Get unique trip_id_unique values
+    unique_trip_ids = df['trip_id_unique'].unique()
 
-class ModelPredictTripDuration:
+    # Split unique_trip_ids into train, test, and dev sets
+    train_trip_ids, temp_trip_ids = train_test_split(unique_trip_ids, test_size=(test_size + dev_size))
+    test_trip_ids, dev_trip_ids = train_test_split(temp_trip_ids, test_size=dev_size / (test_size + dev_size))
 
-    def __init__(self, ):
-        ...
+    # Create train, test, and dev dataframes
+    train_df = df[df['trip_id_unique'].isin(train_trip_ids)]
+    test_df = df[df['trip_id_unique'].isin(test_trip_ids)]
+    dev_df = df[df['trip_id_unique'].isin(dev_trip_ids)]
 
-    def load_data(self, file_path):
-        return pd.read_csv(file_path, encoding='ISO-8859-8')
+    return train_df, test_df, dev_df
 
-    def split_data(self, data):
-        ...
-        self.train_data, self.test_data = train_test_split(data, test_size=0.25)
-        self.test_data, self.val_data = train_test_split(self.test_data, test_size=0.5)
-        # save the data
-        self.train_data.to_csv("files/duration/train_data.csv", encoding='ISO-8859-8')
-        self.test_data.to_csv("files/duration/test_data.csv", encoding='ISO-8859-8')
-        self.val_data.to_csv("files/duration/val_data.csv", encoding='ISO-8859-8')
+# Split the data
+train_df, test_df, dev_df = split_data(df)
 
-    def preprocess(self, data):
-        ...
+# Display the number of rows in each set
+print(f'Training set: {len(train_df)}')
+print(f'Test set: {len(test_df)}')
+print(f'Dev set: {len(dev_df)}')
 
-    def train(self, X, y):
-        ...
-
-    def predict(self, X):
-        ...
-
-    def save(self, data, file_path):
-        ...
-
-
-if __name__ == '__main__':
-    model = ModelPredictTripDuration()
-    schedule_df = model.load_data("X_trip_duration.csv")
-    model.split_data(schedule_df)
-    # 1. load the training set (args.training_set)
-    # 2. preprocess the training set
-    # 3. train a model
-    # 4. load the test set (args.test_set)
-    # 5. preprocess the test set
-    # 6. predict the test set using the trained model
-    # 7. save the predictions to args.out
-    # logging.info("predictions saved to {}".format(args.out))
-    # model.save(model.predict(model.test_data), "predictions/trip_duration_predictions.csv")
-    print("done")
+# Save the sets to new CSV files
+train_df.to_csv('files/duration/train_data.csv', index=False, encoding='ISO-8859-8')
+test_df.to_csv('files/duration/test_data.csv', index=False, encoding='ISO-8859-8')
+dev_df.to_csv('files/duration/dev_data.csv', index=False, encoding='ISO-8859-8')
