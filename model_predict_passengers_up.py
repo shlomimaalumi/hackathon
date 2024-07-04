@@ -1,124 +1,115 @@
 # -*- coding: ISO-8859-8 -*-
 
-
 import pandas as pd
+from sklearn.ensemble import RandomForestRegressor, AdaBoostRegressor, GradientBoostingRegressor
 from sklearn.metrics import mean_squared_error
-from sklearn.model_selection import train_test_split
-from sklearn.linear_model import LinearRegression
+from sklearn.linear_model import LinearRegression, PoissonRegressor, Lasso, Ridge, ElasticNet
 from sklearn.impute import SimpleImputer
-from sklearn.preprocessing import LabelEncoder, StandardScaler
+from sklearn.neighbors import KNeighborsRegressor
+from sklearn.neural_network import MLPRegressor
+from sklearn.preprocessing import LabelEncoder, StandardScaler, PolynomialFeatures
+from sklearn.svm import SVR
+from sklearn.tree import DecisionTreeRegressor
 
-"""
-Given data for a single bus stop, your task is to predict the number of passengers boarding the bus at
-that stop.
-Input.
-A csv where each row holds information of a single bus stop within some bus route ? all columns
-except passengers_up.
-Output.
-A csv file named ?passengers_up_predictions.csv?, including two columns:
-trip_id_unique_station and passengers_up. An example of the output is provided in Table 1 and in
-y_passengers_up_example.csv.
+from xgboost import XGBRegressor
 
-trip_id_unique_station passengers_up
-111a1 0
-222b5 12
-333c1 3
-Table 1: An example of passenger boarding prediction output.
-Evaluation.
-We will evaluate your predictions according to their mean squared error (MSE) metric.
-
-"""
+COLUMNS = ['trip_id', 'part', 'line_id', 'direction', 'alternative', 'cluster', 'station_index',
+           'station_id', 'station_name', 'arrival_time', 'door_closing_time', 'arrival_is_estimated',
+           'latitude', 'longitude', 'passengers_continue', 'mekadem_nipuach_luz', 'passengers_continue_menupach']
 
 
 class ModelPredictPassengersUp:
     """
-    the model use Xgboost to predict the number of passengers boarding the bus at that stop.
-    also the model use the following features:
+    The model uses XGBoost to predict the number of passengers boarding the bus at that stop.
     """
 
     def __init__(self):
         self.label_encoders = {}
         self.scaler = StandardScaler()
+        self.models = [XGBRegressor(), LinearRegression(), PolynomialFeatures(), PoissonRegressor(), Lasso(), Ridge(),
+                       ElasticNet(), DecisionTreeRegressor(), RandomForestRegressor(), AdaBoostRegressor(),
+                       GradientBoostingRegressor(), SVR(), KNeighborsRegressor(), MLPRegressor()]
 
     def load_data(self, file_path):
-        return pd.read_csv(file_path, encoding='ISO-8859-8')
+        self.data = pd.read_csv(file_path, encoding='ISO-8859-8')
+        # Split into labels and features
+        self.y = self.data['passengers_up']
+        self.X = self.data.drop(columns=['passengers_up'])
 
     def preprocess(self, data):
         """
-        initial columns:
-        trip_id,part,trip_id_unique_station,trip_id_unique,line_id,direction,alternative,cluster,station_index,station_id,station_name,arrival_time,door_closing_time,arrival_is_estimated,latitude,longitude,passengers_continue,mekadem_nipuach_luz,passengers_continue_menupach
-
-        :param data: 
-        :return: 
+        Preprocess the data by encoding categorical columns and imputing missing values.
         """
-        # Drop columns that are not needed
-        data = data.drop(
-            columns=['trip_id', 'part', 'line_id', 'alternative', 'cluster', 'station_name', 'arrival_time',
-                     'door_closing_time'])
 
-        # Handle missing values
+        # Columns to remove
+        columns_to_remove = ['trip_id', 'part', 'cluster', 'station_name']
+        data = data.drop(columns=columns_to_remove)
+
+        # Encode the categorical columns
+        for column in data.select_dtypes(include=['object']).columns:
+            if column not in self.label_encoders:
+                self.label_encoders[column] = LabelEncoder()
+            data[column] = self.label_encoders[column].fit_transform(data[column])
+
+        # Impute missing values
         imputer = SimpleImputer(strategy='mean')
-        data = data.drop(columns=['trip_id', 'part', 'line_id', 'direction', 'alternative', 'cluster', 'station_index',
-                                  'station_id', 'station_name', 'arrival_time', 'door_closing_time',
-                                  'arrival_is_estimated',
-                                  'latitude', 'longitude', 'passengers_continue', 'mekadem_nipuach_luz',
-                                  'passengers_continue_menupach'])
+        data = imputer.fit_transform(data)
 
-        # Encode categorical features
-        categorical_features = ['trip_id_unique_station', 'trip_id_unique', 'direction', 'arrival_is_estimated']
-        for feature in categorical_features:
-            if feature not in self.label_encoders:
-                self.label_encoders[feature] = LabelEncoder()
-                data[feature] = self.label_encoders[feature].fit_transform(data[feature])
-            else:
-                data[feature] = self.label_encoders[feature].transform(data[feature])
+        # Scale the data
+        data = self.scaler.fit_transform(data)
 
-        # Normalize/scale features
-        numerical_features = ['latitude', 'longitude', 'passengers_continue', 'mekadem_nipuach_luz',
-                              'passengers_continue_menupach']
-        data[numerical_features] = self.scaler.fit_transform(data[numerical_features])
         return data
 
-    def train(self, X, y):
-        X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.25)
-        model = LinearRegression()
-        model.fit(X_train, y_train)
-        return model
+    def train(self):
+        self.X_preprocessed = self.preprocess(self.X)
+        for model in self.models:
+            model.fit(self.X_preprocessed, self.y)
 
     def predict(self, X):
-        return self.model.predict(X)
+        lst = []
+        X_preprocessed = self.preprocess(X)
+        for model in self.models:
+            lst.append(model.predict(X_preprocessed))
+        return lst
 
-    def save(self, data, file_path):
-        data.to_csv(file_path, encoding='ISO-8859-8')
+    def save(self, predictions, file_path):
+        # Save the data in the given path
+        # df = pd.DataFrame(predictions, columns=['passengers_up'])
+        # df.to_csv(file_path, encoding='ISO-8859-8', index=False)
+        for i, prediction in enumerate(predictions):
+            df = pd.DataFrame(prediction, columns=['passengers_up'])
+            df.to_csv(file_path + f"{i}.csv", encoding='ISO-8859-8', index=False)
 
     def MSE(self, predictions, ground_truth):
-        combined = pd.merge(predictions, ground_truth, on='trip_id_unique_station')
-        mse_board = mean_squared_error(combined["passengers_up_x"], combined["passengers_up_y"])
-        return mse_board
+        for i, prediction in enumerate(predictions):
+            mse = mean_squared_error(prediction, ground_truth)
+            print(f"MSE for model {i}: {mse}")
+
+    def plot_predictions(self, predictions, ground_truth):
+        plt.figure(figsize=(14, 7))
+
+        for i, prediction in enumerate(predictions):
+            plt.scatter(ground_truth, prediction, label=f'Model {i}', alpha=0.6)
+
+        plt.plot([ground_truth.min(), ground_truth.max()], [ground_truth.min(), ground_truth.max()], 'k--', lw=2)
+        plt.xlabel('True Values')
+        plt.ylabel('Predictions')
+        plt.legend()
+        plt.title('Model Predictions vs True Values')
+        plt.show()
+
 
 
 if __name__ == '__main__':
+    train_path = 'files/passengers/train_data.csv'
+    test_path = 'files/passengers/test_data.csv'
+
     model = ModelPredictPassengersUp()
-    schedule_df = model.load_data("files/passengers/train_data.csv")
-    schedule_df = model.preprocess(schedule_df)
-    # save the data after preprocessing:
-    schedule_df.to_csv("files/passengers/preprocessed_data.csv", encoding='ISO-8859-8')
-    X = schedule_df.drop(columns=['passengers_up'])
-    y = schedule_df['passengers_up']
-    model.model = model.train(X, y)
-    # save the model
-    model.save(model.model, "files/passengers/model.pkl")
-    # predict the test data
-    test_data = model.load_data("files/passengers/test_data.csv")
-    test_data = model.preprocess(test_data)
-    X_test = test_data.drop(columns=['passengers_up'])
-    y_test = test_data['passengers_up']
-    predictions = model.predict(X_test)
-    test_data['passengers_up'] = predictions
-    model.save(test_data, "files/passengers/predictions.csv")
-    # evaluate the model
-    # ground_truth = model.load_data("files/passengers/val_data.csv")
-    # ground_truth = model.preprocess(ground_truth)
-    # mse = model.MSE(test_data, ground_truth)
-    # print(f"MSE for boardings: {mse}")
-    # print("done")
+    model.load_data(train_path)
+    model.train()
+
+    # Comparing the predictions to the ground truth
+    predictions = model.predict(model.X)
+    model.save(predictions, 'predictions/passengers_up_predictions')
+    model.MSE(predictions, model.y)
+    # print(f"MSE for boardings: {model.MSE(predictions, model.y)}")
